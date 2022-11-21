@@ -1,6 +1,7 @@
 # Requestcher
 
 Simple HTTP request catcher
+![screenshot](https://user-images.githubusercontent.com/9282021/203161589-923ba247-94c1-46b1-8d0e-cbb21cdeede6.jpg)
 
 ## Features
 
