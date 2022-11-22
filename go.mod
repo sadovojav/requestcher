@@ -1,10 +1,9 @@
-module requestcher
+module github.com/sadovojav/requestcher
 
 go 1.19
 
 require (
 	github.com/fatih/color v1.13.0
-	github.com/sirupsen/logrus v1.9.0
 	github.com/urfave/cli/v2 v2.11.2
 )
 
