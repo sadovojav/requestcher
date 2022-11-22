@@ -1,4 +1,4 @@
-module requestcher
+module github.com/sadovojav/requestcher
 
 go 1.19
 
