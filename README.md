@@ -7,7 +7,7 @@ Simple HTTP request catcher
 
 * Show received request in realtime
 
-## Who to use
+## How to use
 1. CLI
 
 ```shell script
