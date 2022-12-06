@@ -8,7 +8,14 @@ Simple HTTP request catcher
 * Show received request in realtime
 
 ## Who to use
+1. CLI
 
+```shell script
+go install github.com/sadovojav/requestcher@latest
+requestcher
+```
+
+2. Source
 ```shell script
 git clone https://github.com/sadovojav/requestcher.git
 cd requestcher
