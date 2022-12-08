@@ -1,13 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/TylerBrock/colorjson"
 	"github.com/fatih/color"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -15,44 +15,69 @@ import (
 )
 
 var (
-	counter = 1
-	green   = color.New(color.FgGreen).SprintFunc()
+	log         *logrus.Logger
+	counter     = 1
+	green       = color.New(color.FgGreen).SprintFunc()
+	requestInfo RequestInfo
 )
 
+type RequestInfo struct {
+	Counter    int
+	DateTime   string
+	Method     string
+	RequestURI string
+	RemoteAddr string
+	Headers    map[string]string
+	UrlParams  map[string]string
+	FormData   map[string]string
+	Body       interface{}
+}
+
 func handler(w http.ResponseWriter, r *http.Request) {
+	requestInfo = RequestInfo{}
+
 	if r.URL.Path != "/" {
 		http.Error(w, "404 not found.", http.StatusNotFound)
 		return
 	}
 
-	fmt.Printf("%s: %s\n", green(counter), time.Now().Format("02.01.06 15:4:05"))
-	fmt.Printf("%s: %s\n", green("Method"), r.Method)
-	fmt.Printf("%s: %s\n", green("Request URI"), r.RequestURI)
-	fmt.Printf("%s: %s\n", green("Remote Addr"), r.RemoteAddr)
-	color.Green("Headers:\n")
+	requestInfo.Counter = counter
+	requestInfo.DateTime = time.Now().Format("02.01.06 15:4:05")
+	requestInfo.Method = r.Method
+	requestInfo.RequestURI = r.RequestURI
+	requestInfo.RemoteAddr = r.RemoteAddr
 
-	for headerName, headerValue := range r.Header {
-		fmt.Printf("%s = %s\n", headerName, strings.Join(headerValue, ", "))
-	}
-
+	parseHeaders(r)
 	parseUrlParams(r)
-
 	parseBody(r)
 
-	counter++
+	printRequestInfo()
 
-	fmt.Printf("\n")
+	log.WithFields(logrus.Fields{
+		"request": requestInfo,
+	}).Info()
+
+	counter++
+}
+
+func parseHeaders(r *http.Request) {
+	m := make(map[string]string)
+	for name, value := range r.Header {
+		m[name] = strings.Join(value, ", ")
+	}
+	requestInfo.Headers = m
 }
 
 func parseUrlParams(r *http.Request) {
 	values := r.URL.Query()
 
 	if len(values) != 0 {
-		color.Green("URL Params:\n")
-
-		for k, v := range values {
-			fmt.Printf("%s = %s\n", k, v[0])
+		m := make(map[string]string)
+		for name, value := range values {
+			m[name] = value[0]
 		}
+
+		requestInfo.UrlParams = m
 	}
 }
 
@@ -68,36 +93,66 @@ func parseBody(r *http.Request) {
 		values := r.PostForm
 
 		if len(values) != 0 {
-			color.Green("Params:\n")
-
-			for k, v := range values {
-				fmt.Printf("%s = %s\n", k, v[0])
+			m := make(map[string]string)
+			for name, value := range values {
+				m[name] = value[0]
 			}
+
+			requestInfo.FormData = m
 		}
 	} else if contentType == "application/json" {
 		body, err := io.ReadAll(r.Body)
-
 		if err != nil {
 			panic(err)
 		}
 
-		color.Green("Body:\n")
+		var f interface{}
+		if err := json.Unmarshal(body, &f); err != nil {
+			fmt.Println("Can not unmarshal JSON")
+		}
 
-		jsonStr := string(body)
-
-		prettyJson, _ := prettyJsonFormatter(jsonStr)
-
-		fmt.Printf("%s\n", prettyJson)
+		requestInfo.Body = f
 	}
 }
 
-func prettyJsonFormatter(str string) (string, error) {
-	var prettyJSON bytes.Buffer
-	if err := json.Indent(&prettyJSON, []byte(str), "", "    "); err != nil {
-		return "", err
+func printRequestInfo() {
+	fmt.Printf("%s: %s\n", green(requestInfo.Counter), requestInfo.DateTime)
+	fmt.Printf("%s: %s\n", green("Method"), requestInfo.Method)
+	fmt.Printf("%s: %s\n", green("Request URI"), requestInfo.RequestURI)
+	fmt.Printf("%s: %s\n", green("Remote Addr"), requestInfo.RemoteAddr)
+
+	if len(requestInfo.Headers) != 0 {
+		fmt.Printf("%s:\n", green("Headers"))
+		for name, value := range requestInfo.Headers {
+			fmt.Printf("%s = %s\n", name, value)
+		}
 	}
 
-	return prettyJSON.String(), nil
+	if len(requestInfo.UrlParams) != 0 {
+		fmt.Printf("%s:\n", green("UrlParams"))
+		for name, value := range requestInfo.UrlParams {
+			fmt.Printf("%s = %s\n", name, value)
+		}
+	}
+
+	if len(requestInfo.FormData) != 0 {
+		fmt.Printf("%s:\n", green("FormData"))
+		for name, value := range requestInfo.FormData {
+			fmt.Printf("%s = %s\n", name, value)
+		}
+	}
+
+	if requestInfo.Body != nil {
+		fmt.Printf("%s:\n", green("Body"))
+
+		f := colorjson.NewFormatter()
+		f.Indent = 4
+
+		s, _ := f.Marshal(requestInfo.Body)
+		fmt.Println(string(s))
+	}
+
+	fmt.Printf("\n")
 }
 
 func main() {
@@ -119,13 +174,33 @@ func main() {
 			},
 		},
 		Action: func(*cli.Context) error {
+			if _, err := os.Stat("./logs"); os.IsNotExist(err) {
+				os.Mkdir("./logs", os.ModePerm)
+			}
+
+			log = logrus.New()
+			log.SetFormatter(&logrus.JSONFormatter{})
+
+			runID := time.Now().Format("run-2006-01-02-15-04-05")
+			logFile := runID + ".log"
+			f, err := os.OpenFile("./logs/"+logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+			if err == nil {
+				log.Out = f
+			} else {
+				log.Info("Failed to log to file, using default stderr")
+			}
+
+			defer f.Close()
+
 			http.HandleFunc("/", handler)
 
-			fmt.Printf("Starting server at port %s\n", port)
+			fmt.Printf("%s: %s\n", green("Starting server at port"), port)
+			fmt.Printf("%s: %s\n", green("Log file"), logFile)
 
 			if err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil); err != nil {
 				log.Fatal(err)
 			}
+
 			return nil
 		},
 	}
