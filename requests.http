@@ -1,8 +1,8 @@
 ### GET request
-GET http://localhost:8088/?param1=1&param2=2
+GET http://localhost:8080/?param1=1&param2=2
 
 ### Send POST request with json body
-POST http://localhost:8088/?param1=1&param2=2
+POST http://localhost:8080/?param1=1&param2=2
 Content-Type: application/json
 
 {
@@ -11,13 +11,13 @@ Content-Type: application/json
 }
 
 ### Send POST request with body as parameters
-POST http://localhost:8088
+POST http://localhost:8080
 Content-Type: application/x-www-form-urlencoded
 
 id=999&value=content
 
 ### Send PUT request
-PUT http://localhost:8088/
+PUT http://localhost:8080/
 Content-Type: application/json
 
 {
@@ -26,9 +26,9 @@ Content-Type: application/json
 }
 
 ### Send PATCH request
-PATCH http://localhost:8088/?id=42
+PATCH http://localhost:8080/?id=42
 
 ### Send DELETE request
-DELETE http://localhost:8088/?id=73
+DELETE http://localhost:8080/?id=73
 
 ###
