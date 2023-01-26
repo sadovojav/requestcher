@@ -33,7 +33,19 @@ type RequestInfo struct {
 	Body       interface{}
 }
 
+func setupCORS(w *http.ResponseWriter, req *http.Request) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+}
+
 func handler(w http.ResponseWriter, r *http.Request) {
+	setupCORS(&w, r)
+
+	if (*r).Method == "OPTIONS" {
+		return
+	}
+
 	requestInfo = RequestInfo{}
 
 	if r.URL.Path != "/" {
@@ -58,6 +70,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}).Info()
 
 	counter++
+
+	w.WriteHeader(http.StatusOK)
+	
+	json.NewEncoder(w).Encode(requestInfo)
 }
 
 func parseHeaders(r *http.Request) {
@@ -88,7 +104,7 @@ func parseBody(r *http.Request) {
 	}
 
 	contentType := r.Header.Get("Content-type")
-
+	log.Println(contentType)
 	if contentType == "application/x-www-form-urlencoded" {
 		values := r.PostForm
 
